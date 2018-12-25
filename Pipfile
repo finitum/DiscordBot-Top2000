@@ -8,6 +8,7 @@ name = "pypi"
 aiohttp = "*"
 websockets = "*"
 youtube-dl = "*"
+requests = "*"
 
 [dev-packages]
 

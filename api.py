@@ -1,4 +1,5 @@
 import urllib.request
+import requests
 import json
 
 
@@ -19,6 +20,14 @@ def get_current_song():
     data = get_now_on_air()
     song = data["songfile"]["title"] + " by " + data["songfile"]["artist"]
     return song
+
+
+def get_img_url(url):
+    img = requests.get(url, allow_redirects=False)
+    if str(img.status_code).startswith("3"):
+        return "https:" + img.headers['Location']
+    else:
+        return url
 
 
 if __name__ == "__main__":
