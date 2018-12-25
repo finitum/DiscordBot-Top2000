@@ -37,16 +37,21 @@ async def pause(ctx):
 
 
 def generate_current_song_embed():
-    data = api.get_now_on_air()["songfile"]
+    on_air = api.get_now_on_air()["songfile"]
+    place = str(api.get_current_song_place())
 
     embed = discord.Embed(
-        title=data["artist"],
-        description=data["title"]
+        title=on_air["artist"],
+        description=on_air["title"]
     )
 
-    img = api.get_img_url(data['songversion']['image'][0]['url'])
+    try:
+        img = api.get_img_url(on_air['songversion']['image'][0]['url'])
+    except KeyError:
+        img = "https://i.imgur.com/Z3yujMQ.png"
 
     embed.set_thumbnail(url=img)
+    embed.set_footer(text="Place: " + place)
 
     return embed
 
@@ -74,6 +79,8 @@ async def background():
     await bot.wait_until_ready()
     while not bot.is_closed:
         await check_if_new()
+
+        # TZ Offset hardcoded because because can't get python to handle it properly
         end = datetime.strptime(api.get_now_on_air()['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
         now = datetime.now()
         run_at = end - now
