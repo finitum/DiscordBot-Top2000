@@ -1,13 +1,14 @@
+import asyncio
+from datetime import datetime
 import discord
-import time
 import api
 from discord.ext import commands
-from datetime import datetime
 
 # Creates the bot and specifies the prefix
 bot = commands.Bot(command_prefix="!")
 players = {}
 channels = []
+current_song = 0
 
 
 @bot.event
@@ -27,7 +28,6 @@ async def play(ctx):
     players[server.id] = player
     channels.append(ctx.message.channel)
     print("Playing")
-    await schedule_info()
 
 
 @bot.command(pass_context=True)
@@ -56,17 +56,31 @@ async def song():
     await bot.say(embed=generate_current_song_embed())
 
 
-async def schedule_info():
-    for c in channels:
-        await bot.send_message(c, embed=generate_current_song_embed())
+async def check_if_new():
 
-    end = datetime.strptime(api.get_now_on_air()['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
-    now = datetime.now()
-    run_at = end - now
-    delay = run_at.total_seconds()
-    time.sleep(delay)
-    await schedule_info()
+    song_id = api.get_now_on_air()['id']
 
+    global current_song
+
+    print("checking " + str(song_id) + " vs " + str(current_song))
+
+    if not song_id == current_song:
+        current_song = song_id
+        for c in channels:
+            await bot.send_message(c, embed=generate_current_song_embed())
+
+
+async def background():
+    await bot.wait_until_ready()
+    while not bot.is_closed:
+        await check_if_new()
+        end = datetime.strptime(api.get_now_on_air()['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
+        now = datetime.now()
+        run_at = end - now
+        delay = max(int(run_at.total_seconds() + 1), 3)  # Min delay of 3s as not to spam the api if the DJ is slow
+        await asyncio.sleep(delay)
 
 if __name__ == "__main__":
+    bot.loop.create_task(background())
     bot.run("NTI3MTE1MTk1MDU5OTI5MTE4.DwPPPA.9yeoo_IGMzMVAwBLfATt6LdVCaw")  # Needs to be moved to a file
+

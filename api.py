@@ -32,5 +32,3 @@ def get_img_url(url):
 
 if __name__ == "__main__":
     print(get_whole_list())
-
-

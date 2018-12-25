@@ -9,6 +9,8 @@ aiohttp = "*"
 websockets = "*"
 youtube-dl = "*"
 requests = "*"
+asyncio = "*"
+datetime = "*"
 
 [dev-packages]
 
