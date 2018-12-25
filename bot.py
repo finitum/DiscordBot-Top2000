@@ -6,14 +6,10 @@ bot = commands.Bot(command_prefix="!")
 
 @bot.event
 async def on_ready():
+    for channel in bot.get_all_channels():
+        if channel.name == "TOP2000":
+            await bot.join_voice_channel(channel)
     print("Started...")
-
-
-@bot.command(pass_context=True)
-async def join(ctx):
-    channel = ctx.message.author.voice.voice_channel
-    await bot.join_voice_channel(channel)
-    print("Joined")
 
 
 @bot.command(pass_context=True)
