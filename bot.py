@@ -39,12 +39,13 @@ async def pause(ctx):
 
 def generate_current_song_embed():
     on_air = api.get_now_on_air()["songfile"]
+    on_air_details = api.get_now_on_air_details()
     place = str(api.get_current_song_place())
 
-    embed = discord.Embed(
-        title=on_air["artist"],
-        description=on_air["title"]
-    )
+    embed = discord.Embed(title=on_air["title"])
+
+    embed.add_field(name="Artist", value=on_air["artist"])
+    embed.add_field(name="Description", value=on_air_details["description"])
 
     try:
         img = api.get_img_url(on_air['songversion']['image'][0]['url'])
@@ -52,7 +53,12 @@ def generate_current_song_embed():
         img = "https://i.imgur.com/Z3yujMQ.png"
 
     embed.set_thumbnail(url=img)
-    embed.set_footer(text="Place: " + place)
+
+    full_list_result = api.get_now_on_air_from_full_list()
+    footer = place
+    if full_list_result["prv"] != 0:
+        footer += ". (last time: " + str(full_list_result["prv"] + ")")
+    embed.add_field(name="Position", value=footer)
 
     return embed
 

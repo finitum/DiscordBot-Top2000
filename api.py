@@ -7,38 +7,51 @@ def get_whole_list():
     url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Top2000&format=json&year=2018"
     with urllib.request.urlopen(url) as url:
         res = json.loads(url.read().decode())
-        return res["data"]
-
+        return res["data"][0]
 
 def get_now_on_air():
     with urllib.request.urlopen("https://radiobox2.omroep.nl/data/radiobox2/nowonair/2.json") as url:
         res = json.loads(url.read().decode())
         return res['results'][0]
 
-
-def get_current_song():
-    data = get_now_on_air()
-    song = data["songfile"]["title"] + " by " + data["songfile"]["artist"]
+def get_now_on_air_details():
+    song = get_song_by_id(get_now_on_air_id())
     return song
 
+def get_now_on_air_from_full_list():
+    on_air = get_now_on_air()["songfile"]
+
+    title = on_air["title"]
+    artist = on_air["artist"]
+
+    whole_list = get_whole_list()
+    for curr_record in whole_list:
+        if curr_record["s"] == title and curr_record["a"] == artist:
+            return curr_record
+
+def get_now_on_air_id():
+    on_air = get_now_on_air()["songfile"]
+    try:
+        on_air_id = on_air["songversion"]["id"]
+        return on_air_id
+    except KeyError:
+        title = on_air["title"]
+        artist = on_air["artist"]
+
+        whole_list = get_whole_list()
+        for curr_record in whole_list:
+            if curr_record["s"] == title and curr_record["a"] == artist:
+                return curr_record["aid"]
+    return -1
 
 def get_song_by_id(song_id):
     url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid=" + str(song_id)
     with urllib.request.urlopen(url) as url:
         res = json.loads(url.read().decode())
-        return res["data"]
-
+        return res["data"][0]
 
 def get_current_song_place():
-    try:
-        on_air = get_now_on_air()["songfile"]
-        song_data = get_song_by_id(on_air["songversion"]["id"])
-        positions = song_data[0]["positions"]
-        place = positions[len(positions) - 1]["position"]
-    except KeyError:
-        return -1
-
-    return place
+    return get_now_on_air_from_full_list()["pos"]
 
 
 def get_img_url(url):
