@@ -38,8 +38,8 @@ async def on_ready():
             print("Joined text channel...")
 
 
-async def generate_current_song_embed():
-    on_air = api.get_now_on_air()["songfile"]
+async def generate_current_song_embed(on_air_full = api.get_now_on_air()):
+    on_air = on_air_full["songfile"]
     on_air_details = api.get_now_on_air_details(on_air)
     on_air_full_list = api.get_now_on_air_from_full_list(on_air)
 
@@ -54,8 +54,8 @@ async def generate_current_song_embed():
     embed.url = "https://www.nporadio2.nl" + on_air_full_list["url"]
 
     try:
-        img = api.get_img_url(on_air['songversion']['image'][0]['url'])
-    except KeyError:
+        img = api.get_img_url(on_air["songversion"]["image"][0]["url"])
+    except (KeyError, TypeError):
         img = "https://i.imgur.com/Z3yujMQ.png"
 
     game = discord.Game()
@@ -87,7 +87,8 @@ async def restart():
 async def check_if_new():
     await bot.wait_until_ready()
 
-    song_id = api.get_now_on_air()['id']
+    song = api.get_now_on_air()
+    song_id = song['id']
 
     global current_song
 
@@ -103,7 +104,7 @@ async def check_if_new():
             if players[c.server.id].is_playing():
                 if song_id == 34096:  # BOHEMIANNNN
                     await bot.send_message(c, content="LAST SONG!")
-                await bot.send_message(c, embed=await generate_current_song_embed())
+                await bot.send_message(c, embed=await generate_current_song_embed(song))
 
 
 async def happy_new_year():
@@ -127,7 +128,7 @@ async def background():
         nowonair = api.get_now_on_air()
         global current_song
         if nowonair['id'] != current_song:
-            print("New song, id = " + str(current_song))
+            print("New song, id = " + str(nowonair['id']))
             await asyncio.sleep(song_delay)
         else:
             # TZ Offset hardcoded because because can't get python to handle it properly
