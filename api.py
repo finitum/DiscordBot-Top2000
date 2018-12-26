@@ -10,10 +10,37 @@ def get_whole_list():
         return res["data"][0]
 
 
+def search_song_by_name(title, artist):
+    whole_list = get_whole_list()
+    for curr_record in whole_list:
+        if curr_record["s"] == title and curr_record["a"] == artist:
+            return curr_record["aid"]
+
+
+def get_song_by_id(song_id):
+    url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid=" + str(song_id)
+    with urllib.request.urlopen(url) as url:
+        res = json.loads(url.read().decode())
+        return res["data"][0]
+
+
 def get_now_on_air():
     with urllib.request.urlopen("https://radiobox2.omroep.nl/data/radiobox2/nowonair/2.json") as url:
         res = json.loads(url.read().decode())
         return res['results'][0]
+
+
+def get_now_on_air_id():
+    on_air = get_now_on_air()["songfile"]
+    try:
+        on_air_id = on_air["songversion"]["id"]
+        return on_air_id
+    except KeyError:
+        title = on_air["title"]
+        artist = on_air["artist"]
+
+        search = search_song_by_name(title, artist)
+        return search
 
 
 def get_now_on_air_details():
@@ -27,32 +54,8 @@ def get_now_on_air_from_full_list():
     title = on_air["title"]
     artist = on_air["artist"]
 
-    whole_list = get_whole_list()
-    for curr_record in whole_list:
-        if curr_record["s"] == title and curr_record["a"] == artist:
-            return curr_record
-
-
-def get_now_on_air_id():
-    on_air = get_now_on_air()["songfile"]
-    try:
-        on_air_id = on_air["songversion"]["id"]
-        return on_air_id
-    except KeyError:
-        title = on_air["title"]
-        artist = on_air["artist"]
-
-        whole_list = get_whole_list()
-        for curr_record in whole_list:
-            if curr_record["s"] == title and curr_record["a"] == artist:
-                return curr_record["aid"]
-
-
-def get_song_by_id(song_id):
-    url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid=" + str(song_id)
-    with urllib.request.urlopen(url) as url:
-        res = json.loads(url.read().decode())
-        return res["data"][0]
+    search = search_song_by_name(title, artist)
+    return search
 
 
 def get_current_song_place():
