@@ -10,7 +10,7 @@ bot = commands.Bot(command_prefix="top2000-")
 players = {}
 channels = []
 current_song = 0
-song_delay = 5
+song_delay = 15
 
 
 @bot.event
