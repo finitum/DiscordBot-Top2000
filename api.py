@@ -14,7 +14,7 @@ def search_song_by_name(title, artist):
     whole_list = get_whole_list()
     for curr_record in whole_list:
         if curr_record["s"] == title and curr_record["a"] == artist:
-            return curr_record["aid"]
+            return curr_record
 
 
 def get_song_by_id(song_id):
@@ -40,7 +40,7 @@ def get_now_on_air_id():
         artist = on_air["artist"]
 
         search = search_song_by_name(title, artist)
-        return search
+        return search["aid"]
 
 
 def get_now_on_air_details():
