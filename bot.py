@@ -12,31 +12,27 @@ channels = []
 current_song = 0
 song_delay = 15
 
+# bot.on_error()
+
+# def error():
+
 
 @bot.event
 async def on_ready():
     for channel in bot.get_all_channels():
-        if channel.name == "TOP2000":
+        if channel.name == "top2000" and channel.type == discord.enums.ChannelType.voice:
+            await bot.wait_until_ready()
             await bot.join_voice_channel(channel)
-    print("Started...")
-
-
-@bot.command(pass_context=True)
-async def play(ctx):
-    server = ctx.message.server
-    voice_client = bot.voice_client_in(server)
-    player = await voice_client.create_ytdl_player("http://icecast.omroep.nl/radio2-bb-mp3")
-    player.start()
-    players[server.id] = player
-    channels.append(ctx.message.channel)
-    print("Playing...")
-    await bot.say(embed=generate_current_song_embed())
-
-
-@bot.command(pass_context=True)
-async def pause(ctx):
-    server = ctx.message.server
-    players[server.id].stop()
+            server = channel.server
+            voice_client = bot.voice_client_in(server)
+            player = await voice_client.create_ytdl_player("http://icecast.omroep.nl/radio2-bb-mp3")
+            player.start()
+            players[server.id] = player
+            print("Playing music...")
+        elif channel.name == "top2000" and channel.type == discord.enums.ChannelType.text:
+            channels.append(channel)
+            await bot.send_message(channel, embed=generate_current_song_embed())
+            print("Sending text...")
 
 
 def generate_current_song_embed():
