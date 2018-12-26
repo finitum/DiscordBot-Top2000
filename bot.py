@@ -70,6 +70,8 @@ async def song():
 
 
 async def check_if_new():
+    await bot.wait_until_ready()
+
     song_id = api.get_now_on_air()['id']
 
     global current_song

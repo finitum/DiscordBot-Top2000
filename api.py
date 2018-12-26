@@ -13,11 +13,22 @@ def get_whole_list():
 def search_song_by_name(title, artist):
     whole_list = get_whole_list()
     for curr_record in whole_list:
-        if curr_record["s"] == title and curr_record["a"] == artist:
+        if curr_record["s"].lower() == title.lower() and curr_record["a"].lower() == artist.lower():
             return curr_record
+    return {
+        "aid": -1,
+        "url": "/",
+        "pos": "-1 (error)",
+        "prv": 0
+    }
 
 
 def get_song_by_id(song_id):
+    if song_id == -1:
+        return {
+            "description": "(error)"
+        }
+
     url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid=" + str(song_id)
     with urllib.request.urlopen(url) as url:
         res = json.loads(url.read().decode())
@@ -40,7 +51,10 @@ def get_now_on_air_id():
         artist = on_air["artist"]
 
         search = search_song_by_name(title, artist)
-        return search["aid"]
+        if search["aid"] != -1:
+            return search["aid"]
+        else:
+            return -1
 
 
 def get_now_on_air_details():
