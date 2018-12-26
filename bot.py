@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import discord
 import api
 from discord.ext import commands
@@ -11,7 +11,6 @@ players = {}
 channels = []
 current_song = 0
 song_delay = 15
-
 
 
 def error():
@@ -29,7 +28,7 @@ async def on_ready():
             await bot.join_voice_channel(channel)
             server = channel.server
             voice_client = bot.voice_client_in(server)
-            player = await voice_client.create_ytdl_player("http://icecast.omroep.nl/radio2-bb-mp3")
+            player = await voice_client.create_ytdl_player("https://icecast.omroep.nl/radio2-bb-mp3")
             player.start()
             players[server.id] = player
             print("Playing music...")
@@ -75,6 +74,11 @@ async def generate_current_song_embed():
 @bot.command()
 async def song():
     await bot.say(embed=await generate_current_song_embed())
+
+
+@bot.command()
+async def restart():
+    error()
 
 
 async def check_if_new():
@@ -124,7 +128,7 @@ async def background():
         else:
             # TZ Offset hardcoded because because can't get python to handle it properly
             end = datetime.strptime(nowonair['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
-            run_at = end - datetime.now()
+            run_at = end - (datetime.utcnow() + timedelta(hours=1))
             delay = max(int(run_at.total_seconds() + song_delay), song_delay)
             await asyncio.sleep(delay)  # And finally wait for the calculated delay
 

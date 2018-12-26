@@ -76,3 +76,8 @@ def get_img_url(url):
         return "https:" + img.headers['Location']
     else:
         return url
+
+
+if __name__ == "__main__":
+    print("")
+
