@@ -86,7 +86,7 @@ async def check_if_new():
 
         for c in channels:
             if players[c.server.id].is_playing():
-                if song_id == 34096: # BOHEMIANNNN
+                if song_id == 34096:  # BOHEMIANNNN
                     await bot.send_message(c, content="LAST SONG!")
                 await bot.send_message(c, embed=generate_current_song_embed())
 
