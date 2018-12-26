@@ -40,12 +40,14 @@ async def pause(ctx):
 def generate_current_song_embed():
     on_air = api.get_now_on_air()["songfile"]
     on_air_details = api.get_now_on_air_details()
+    on_air_full_list = api.get_now_on_air_from_full_list()
+
     place = str(api.get_current_song_place())
 
-    embed = discord.Embed(title=on_air["title"])
+    embed = discord.Embed(title=on_air["title"] + " - " + on_air["artist"])
 
-    embed.add_field(name="Artist", value=on_air["artist"])
     embed.add_field(name="Description", value=on_air_details["description"])
+    embed.url = "https://www.nporadio2.nl" + on_air_full_list["url"]
 
     try:
         img = api.get_img_url(on_air['songversion']['image'][0]['url'])
@@ -54,10 +56,9 @@ def generate_current_song_embed():
 
     embed.set_thumbnail(url=img)
 
-    full_list_result = api.get_now_on_air_from_full_list()
     footer = str(place)
-    if full_list_result["prv"] != 0:
-        footer += ". (last time: " + str(full_list_result["prv"]) + ")"
+    if on_air_full_list["prv"] != 0:
+        footer += " (last time: " + str(on_air_full_list["prv"]) + ")"
     embed.add_field(name="Position", value=footer)
 
     return embed
