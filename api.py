@@ -1,13 +1,10 @@
-import urllib.request
 import requests
-import json
 
 
 def get_whole_list():
     url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Top2000&format=json&year=2018"
-    with urllib.request.urlopen(url) as url:
-        res = json.loads(url.read().decode())
-        return res["data"][0]
+    res = requests.get(url).json()
+    return res["data"][0]
 
 
 def search_song_by_name(title, artist):
@@ -30,15 +27,14 @@ def get_song_by_id(song_id):
         }
 
     url = "https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid=" + str(song_id)
-    with urllib.request.urlopen(url) as url:
-        res = json.loads(url.read().decode())
-        return res["data"][0]
+    res = requests.get(url).json()
+    return res["data"][0]
 
 
 def get_now_on_air():
-    with urllib.request.urlopen("https://radiobox2.omroep.nl/data/radiobox2/nowonair/2.json") as url:
-        res = json.loads(url.read().decode())
-        return res['results'][0]
+    url = "https://radiobox2.omroep.nl/data/radiobox2/nowonair/2.json"
+    res = requests.get(url).json()
+    return res['results'][0]
 
 
 def get_now_on_air_id(on_air):
@@ -79,5 +75,5 @@ def get_img_url(url):
 
 
 if __name__ == "__main__":
-    print("")
+    print(get_whole_list())
 
