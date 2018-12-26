@@ -55,7 +55,7 @@ def generate_current_song_embed():
     embed.set_thumbnail(url=img)
 
     full_list_result = api.get_now_on_air_from_full_list()
-    footer = place
+    footer = str(place)
     if full_list_result["prv"] != 0:
         footer += ". (last time: " + str(full_list_result["prv"] + ")")
     embed.add_field(name="Position", value=footer)
