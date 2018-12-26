@@ -41,8 +41,7 @@ def get_now_on_air():
         return res['results'][0]
 
 
-def get_now_on_air_id():
-    on_air = get_now_on_air()["songfile"]
+def get_now_on_air_id(on_air):
     try:
         on_air_id = on_air["songversion"]["id"]
         return on_air_id
@@ -57,13 +56,12 @@ def get_now_on_air_id():
             return -1
 
 
-def get_now_on_air_details():
-    song = get_song_by_id(get_now_on_air_id())
+def get_now_on_air_details(on_air):
+    song = get_song_by_id(get_now_on_air_id(on_air))
     return song
 
 
-def get_now_on_air_from_full_list():
-    on_air = get_now_on_air()["songfile"]
+def get_now_on_air_from_full_list(on_air):
 
     title = on_air["title"]
     artist = on_air["artist"]

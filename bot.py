@@ -41,8 +41,8 @@ async def pause(ctx):
 
 def generate_current_song_embed():
     on_air = api.get_now_on_air()["songfile"]
-    on_air_details = api.get_now_on_air_details()
-    on_air_full_list = api.get_now_on_air_from_full_list()
+    on_air_details = api.get_now_on_air_details(on_air)
+    on_air_full_list = api.get_now_on_air_from_full_list(on_air)
 
     embed = discord.Embed(title=on_air["title"] + " - " + on_air["artist"])
 
