@@ -2,3 +2,4 @@ version: '3'
 services:
   top2000-bot:
     build: .
+    restart: always
