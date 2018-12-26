@@ -3,6 +3,7 @@ from datetime import datetime
 import discord
 import api
 from discord.ext import commands
+import os
 
 # Creates the bot and specifies the prefix
 bot = commands.Bot(command_prefix="top2000-")
@@ -76,10 +77,22 @@ async def check_if_new():
     print("checking " + str(song_id) + " vs " + str(current_song))  # Debug message
 
     if not song_id == current_song:  # Still compare because as sometimes the DJ does not switch immediately
-        current_song = song_id
-        for c in channels:
-            if players[c.server.id].is_playing():
-                await bot.send_message(c, embed=generate_current_song_embed())
+        if current_song != 34096: # Bohemian is not over
+            current_song = song_id
+
+            for c in channels:
+                if players[c.server.id].is_playing():
+                    if song_id == 34096: # BOHEMIANNNN
+                        await bot.send_message(c, content="LAST SONG!")
+                    await bot.send_message(c, embed=generate_current_song_embed())
+        else:
+            for p in players:
+                players[p].stop()
+
+            for c in channels:
+                await bot.send_message(c, content="Happy new year!!! Until next year :)")
+
+            os._exit(0)
 
 
 async def background():
