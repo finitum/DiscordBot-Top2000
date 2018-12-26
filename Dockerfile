@@ -12,4 +12,4 @@ COPY Pipfile.lock /app/
 WORKDIR /app
 RUN pipenv install --deploy --system
 
-CMD ["python", "bot.py"]
+CMD ["python", "-u", "bot.py"]
