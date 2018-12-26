@@ -18,7 +18,7 @@ def search_song_by_name(title, artist):
     return {
         "aid": -1,
         "url": "/",
-        "pos": "-1 (error)",
+        "pos": "(error)",
         "prv": 0
     }
 
