@@ -58,17 +58,9 @@ def get_now_on_air_from_full_list():
     return search
 
 
-def get_current_song_place():
-    return get_now_on_air_from_full_list()["pos"]
-
-
 def get_img_url(url):
     img = requests.get(url, allow_redirects=False)
     if str(img.status_code).startswith("3"):
         return "https:" + img.headers['Location']
     else:
         return url
-
-
-if __name__ == "__main__":
-    print(get_current_song_place())

@@ -42,8 +42,6 @@ def generate_current_song_embed():
     on_air_details = api.get_now_on_air_details()
     on_air_full_list = api.get_now_on_air_from_full_list()
 
-    place = str(api.get_current_song_place())
-
     embed = discord.Embed(title=on_air["title"] + " - " + on_air["artist"])
 
     embed.add_field(name="Description", value=on_air_details["description"])
@@ -56,9 +54,9 @@ def generate_current_song_embed():
 
     embed.set_thumbnail(url=img)
 
-    footer = str(place)
+    footer = str(on_air_full_list["pos"])
     if on_air_full_list["prv"] != 0:
-        footer += " (last year: " + str(on_air_full_list["prv"]) + ")"
+        footer += " (last year: " + str() + ")"
     embed.add_field(name="Position", value=footer)
 
     return embed
