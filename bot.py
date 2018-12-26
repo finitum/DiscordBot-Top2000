@@ -31,11 +31,11 @@ async def on_ready():
             player = await voice_client.create_ytdl_player("https://icecast.omroep.nl/radio2-bb-mp3")
             player.start()
             players[server.id] = player
-            print("Playing music...")
+            print("Joined voice channel...")
         elif channel.name == "top2000" and channel.type == discord.enums.ChannelType.text:
             channels.append(channel)
             await bot.send_message(channel, embed=await generate_current_song_embed())
-            print("Sending text...")
+            print("Joined text channel...")
 
 
 async def generate_current_song_embed():
@@ -43,9 +43,12 @@ async def generate_current_song_embed():
     on_air_details = api.get_now_on_air_details(on_air)
     on_air_full_list = api.get_now_on_air_from_full_list(on_air)
 
-    titleArtist = on_air["title"] + " - " + on_air["artist"]
+    title_artist = on_air["title"] + " - " + on_air["artist"]
 
-    embed = discord.Embed(title=titleArtist)
+    now = (datetime.utcnow() + timedelta(hours=1))
+    print("Playing song: " + title_artist + " at " + str(now.time()))
+
+    embed = discord.Embed(title=title_artist)
 
     embed.add_field(name="Description", value=on_air_details["description"])
     embed.url = "https://www.nporadio2.nl" + on_air_full_list["url"]
@@ -56,7 +59,7 @@ async def generate_current_song_embed():
         img = "https://i.imgur.com/Z3yujMQ.png"
 
     game = discord.Game()
-    game.name = titleArtist
+    game.name = title_artist
     game.url = img
     game.type = 2
     await bot.change_presence(game=game, afk=False)
@@ -88,7 +91,7 @@ async def check_if_new():
 
     global current_song
 
-    print("checking " + str(song_id) + " vs " + str(current_song))  # Debug message
+    print("Checking: " + str(song_id) + " vs " + str(current_song))  # Debug message
 
     if not song_id == current_song:  # Still compare because as sometimes the DJ does not switch immediately
         if current_song == 34096:  # Bohemian
@@ -124,11 +127,16 @@ async def background():
         nowonair = api.get_now_on_air()
         global current_song
         if nowonair['id'] != current_song:
+            print("New song, id = " + str(current_song))
             await asyncio.sleep(song_delay)
         else:
             # TZ Offset hardcoded because because can't get python to handle it properly
             end = datetime.strptime(nowonair['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
-            run_at = end - (datetime.utcnow() + timedelta(hours=1))
+            now = (datetime.utcnow() + timedelta(hours=1))
+            print("Now: " + str(now.time()))
+            print("End: " + str(end.time()))
+
+            run_at = end - now
             delay = max(int(run_at.total_seconds() + song_delay), song_delay)
             await asyncio.sleep(delay)  # And finally wait for the calculated delay
 
