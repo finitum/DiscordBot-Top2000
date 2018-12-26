@@ -5,7 +5,7 @@ import api
 from discord.ext import commands
 
 # Creates the bot and specifies the prefix
-bot = commands.Bot(command_prefix="!")
+bot = commands.Bot(command_prefix="top2000-")
 players = {}
 channels = []
 current_song = 0
@@ -58,7 +58,7 @@ def generate_current_song_embed():
 
     footer = str(place)
     if on_air_full_list["prv"] != 0:
-        footer += " (last time: " + str(on_air_full_list["prv"]) + ")"
+        footer += " (last year: " + str(on_air_full_list["prv"]) + ")"
     embed.add_field(name="Position", value=footer)
 
     return embed
@@ -70,7 +70,6 @@ async def song():
 
 
 async def check_if_new():
-
     song_id = api.get_now_on_air()['id']
 
     global current_song
@@ -80,7 +79,7 @@ async def check_if_new():
     if not song_id == current_song:  # Still compare because as sometimes the DJ does not switch immediately
         current_song = song_id
         for c in channels:
-            if players[c.id].is_playing():
+            if players[c.server.id].is_playing():
                 await bot.send_message(c, embed=generate_current_song_embed())
 
 
