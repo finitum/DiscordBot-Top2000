@@ -7,6 +7,7 @@ RUN pip install pipenv
 RUN mkdir -p /app
 COPY api.py /app/
 COPY bot.py /app/
+COPY TOKEN /app/
 COPY Pipfile /app/
 COPY Pipfile.lock /app/
 WORKDIR /app

@@ -143,5 +143,6 @@ async def background():
 
 if __name__ == "__main__":
     bot.loop.create_task(background())
-    bot.run("NTI3MTE1MTk1MDU5OTI5MTE4.DwPPPA.9yeoo_IGMzMVAwBLfATt6LdVCaw")  # Needs to be moved to a file
+    token = open('TOKEN', "r").readline().rstrip()
+    bot.run(token)  # Needs to be moved to a file
 
