@@ -12,9 +12,13 @@ channels = []
 current_song = 0
 song_delay = 15
 
-# bot.on_error()
 
-# def error():
+
+def error():
+    os._exit(1)
+
+
+bot.on_error(error)
 
 
 @bot.event
@@ -31,16 +35,18 @@ async def on_ready():
             print("Playing music...")
         elif channel.name == "top2000" and channel.type == discord.enums.ChannelType.text:
             channels.append(channel)
-            await bot.send_message(channel, embed=generate_current_song_embed())
+            await bot.send_message(channel, embed=await generate_current_song_embed())
             print("Sending text...")
 
 
-def generate_current_song_embed():
+async def generate_current_song_embed():
     on_air = api.get_now_on_air()["songfile"]
     on_air_details = api.get_now_on_air_details(on_air)
     on_air_full_list = api.get_now_on_air_from_full_list(on_air)
 
-    embed = discord.Embed(title=on_air["title"] + " - " + on_air["artist"])
+    titleArtist = on_air["title"] + " - " + on_air["artist"]
+
+    embed = discord.Embed(title=titleArtist)
 
     embed.add_field(name="Description", value=on_air_details["description"])
     embed.url = "https://www.nporadio2.nl" + on_air_full_list["url"]
@@ -49,6 +55,12 @@ def generate_current_song_embed():
         img = api.get_img_url(on_air['songversion']['image'][0]['url'])
     except KeyError:
         img = "https://i.imgur.com/Z3yujMQ.png"
+
+    game = discord.Game()
+    game.name = titleArtist
+    game.url = img
+    game.type = 2
+    await bot.change_presence(game=game, afk=False)
 
     embed.set_thumbnail(url=img)
 
@@ -62,7 +74,7 @@ def generate_current_song_embed():
 
 @bot.command()
 async def song():
-    await bot.say(embed=generate_current_song_embed())
+    await bot.say(embed=await generate_current_song_embed())
 
 
 async def check_if_new():
@@ -84,7 +96,7 @@ async def check_if_new():
             if players[c.server.id].is_playing():
                 if song_id == 34096:  # BOHEMIANNNN
                     await bot.send_message(c, content="LAST SONG!")
-                await bot.send_message(c, embed=generate_current_song_embed())
+                await bot.send_message(c, embed=await generate_current_song_embed())
 
 
 async def happy_new_year():
