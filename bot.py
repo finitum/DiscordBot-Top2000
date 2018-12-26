@@ -56,7 +56,7 @@ def generate_current_song_embed():
 
     footer = str(on_air_full_list["pos"])
     if on_air_full_list["prv"] != 0:
-        footer += " (last year: " + str() + ")"
+        footer += " (last year: " + str(on_air_full_list["prv"]) + ")"
     embed.add_field(name="Position", value=footer)
 
     return embed
