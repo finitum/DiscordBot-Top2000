@@ -9,6 +9,7 @@ bot = commands.Bot(command_prefix="top2000-")
 players = {}
 channels = []
 current_song = 0
+song_delay = 5
 
 
 @bot.event
@@ -86,11 +87,16 @@ async def background():
     while not bot.is_closed:
         await check_if_new()
 
-        # TZ Offset hardcoded because because can't get python to handle it properly
-        end = datetime.strptime(api.get_now_on_air()['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
-        run_at = end - datetime.now()
-        delay = max(int(run_at.total_seconds() + 3), 3)  # Min delay of 3s as not to spam the api if the DJ is slow
-        await asyncio.sleep(delay)  # And finally wait for the calculated delay
+        nowonair = api.get_now_on_air()
+        global current_song
+        if nowonair['id'] != current_song:
+            await asyncio.sleep(song_delay)
+        else:
+            # TZ Offset hardcoded because because can't get python to handle it properly
+            end = datetime.strptime(nowonair['stopdatetime'], "%Y-%m-%dT%H:%M:%S+01:00")
+            run_at = end - datetime.now()
+            delay = max(int(run_at.total_seconds() + song_delay), song_delay)
+            await asyncio.sleep(delay)  # And finally wait for the calculated delay
 
 if __name__ == "__main__":
     bot.loop.create_task(background())
