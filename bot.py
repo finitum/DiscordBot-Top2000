@@ -158,8 +158,18 @@ async def background():
             await asyncio.sleep(delay)  # And finally wait for the calculated delay
 
 
+def error_handler(loop, context):
+    print(context)
+    error()
+
+
 if __name__ == "__main__":
-    bot.loop.create_task(background())
-    token = open('TOKEN', "r").readline().rstrip()
-    bot.run(token)  # Needs to be moved to a file
+    asyncio.get_event_loop().set_exception_handler(error_handler)
+
+    try:
+        bot.loop.create_task(background())
+        token = open("TOKEN", "r").readline().rstrip()
+        bot.run(token)  # Needs to be moved to a file
+    except:
+        error()
 
