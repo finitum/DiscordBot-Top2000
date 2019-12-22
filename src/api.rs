@@ -24,7 +24,7 @@ pub struct SongList {
 }
 
 pub struct NowOnAir {
-    pub song: Option<Song>,
+    pub song: Song,
     pub img_url: Option<String>
 }
 
@@ -64,44 +64,58 @@ impl SongList {
     }
 
     pub fn get_now_on_air(&self) -> Result<NowOnAir, ErrorKind> {
-        let body = reqwest::blocking::get("https://radiobox2.omroep.nl/data/radiobox2/nowonair/2.json")
-            .map_err(|e| ErrorKind::RequestError(e))?
-            .text()
-            .map_err(|e| ErrorKind::RequestError(e))?;
+        // temporary, as it's not top2000 yet
+        self.songs.first().map(|s| NowOnAir {
+            song: s.to_owned(),
+            img_url: None
+        }).ok_or(ErrorKind::GenericError)
 
-        let parsed_json = serde_json::from_str::<Value>(&body).map_err(|e| ErrorKind::JsonError(e))?;
-
-
-        let id_unparsed = &parsed_json["results"][0]["songfile"]["songversion"]["id"];
-        if let Value::Number(id) = id_unparsed {
-            if id.is_u64() {
-                let song = self.songs.iter().find(|s| s.id == id.as_u64().unwrap()).ok_or(ErrorKind::GenericError)?;
-
-                let img_url_unparsed = &parsed_json["results"][0]["songfile"]["songversion"]["image"]["url_ssl"];
-                let img_url = if let Value::String(img) = img_url_unparsed {
-                    Some(img.to_string())
-                } else {
-                    None
-                };
-
-                Ok(NowOnAir {
-                    song: Some(song.clone()),
-                    img_url
-                })
-            } else {
-                Err(ErrorKind::GenericError)
-            }
-        } else {
-            let artist = &parsed_json["results"][0]["songfile"]["artist"];
-            let title = &parsed_json["results"][0]["songfile"]["title"];
-
-            if artist == Value::Null || title == Value::Null {
-                self.songs.iter().find(|s| {
-                    s.artist == artist.to_st
-                })
-            }
-
-            Err(ErrorKind::GenericError)
-        }
+//        let body = reqwest::blocking::get("https://radiobox2.omroep.nl/data/radiobox2/nowonair/2.json")
+//            .map_err(|e| ErrorKind::RequestError(e))?
+//            .text()
+//            .map_err(|e| ErrorKind::RequestError(e))?;
+//
+//        let parsed_json = serde_json::from_str::<Value>(&body).map_err(|e| ErrorKind::JsonError(e))?;
+//
+//        let id_unparsed = &parsed_json["results"][0]["songfile"]["songversion"]["id"];
+//        if let Value::Number(id) = id_unparsed {
+//            if id.is_u64() {
+//                let song = self.songs.iter().find(|s| s.id == id.as_u64().unwrap()).ok_or(ErrorKind::GenericError)?;
+//
+//                let img_url_unparsed = &parsed_json["results"][0]["songfile"]["songversion"]["image"]["url_ssl"];
+//                let img_url = if let Value::String(img) = img_url_unparsed {
+//                    Some(img.to_string())
+//                } else {
+//                    None
+//                };
+//
+//                return Ok(NowOnAir {
+//                    song: song.clone(),
+//                    img_url
+//                })
+//            }
+//        } else {
+//            let artist_val = &parsed_json["results"][0]["songfile"]["artist"];
+//            let title_val = &parsed_json["results"][0]["songfile"]["title"];
+//
+//            if let Value::String(artist) = artist_val {
+//                if let Value::String(title) = title_val {
+//                    let song = self.songs.iter().find(|s| {
+//                        s.artist == *artist && s.title == *title
+//                    });
+//
+//                    if song.is_some() {
+//                        return Ok(NowOnAir {
+//                            song: song.unwrap().to_owned(),
+//                            img_url: None
+//                        });
+//                    } else {
+//                        return Err(ErrorKind::GenericError);
+//                    }
+//                }
+//            }
+//        }
+//
+//        Err(ErrorKind::GenericError)
     }
 }

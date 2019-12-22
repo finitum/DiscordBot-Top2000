@@ -1,6 +1,6 @@
 use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, Mutex};
-use serenity::model::gateway::{Ready, Activity};
+use serenity::model::gateway::{Ready, Activity, ActivityAssets};
 use std::cell::RefCell;
 use serenity::model::channel::{GuildChannel, ChannelType};
 use std::sync::{Arc};
@@ -37,13 +37,18 @@ impl Clone for Handler {
 
 impl Handler {
     pub fn new(song_list: SongList) -> Handler {
-        let song = song_list.get_now_on_air().ok().map(|s| s.song.clone());
+        let result = song_list.get_now_on_air();
+        let current_song = if let Ok(song) = result {
+            Some(song.song)
+        } else {
+            None
+        };
 
         Handler {
             song_list,
             text_channels: Mutex::new(RefCell::new(vec![])),
             voice_channels: Mutex::new(RefCell::new(vec![])),
-            current_song: song
+            current_song
         }
     }
 
@@ -80,20 +85,28 @@ impl Handler {
 
         thread::spawn(move || {
             loop {
-                self_clone.generate_embed(&ctx_clone);
+                self_clone.handle_new_song(&ctx_clone);
                 thread::sleep(Duration::from_millis(15000));
             }
         });
     }
 
-    fn generate_embed(&self, ctx: &Context) {
-        let now_on_air = self.song_list.get_now_on_air().unwrap();
+    fn handle_new_song(&self, ctx: &Context) {
+        let now_on_air = self.song_list.get_now_on_air();
 
-        let title = &now_on_air.song.title;
-        let desc = now_on_air.song.get_description().unwrap();
-        println!("{} with desc {}", title, desc);
+        if let Ok(on_air) = now_on_air {
+            let title = &on_air.song.title;
+            let desc = &on_air.song.get_description().unwrap();
+            println!("{} with desc {}", title, desc);
 
-        self.update_presence(ctx, &now_on_air);
+            self.update_presence(ctx, &on_air);
+            self.generate_embed(ctx, &on_air);
+        }
+
+    }
+
+    fn generate_embed(&self, ctx: &Context, now_on_air: &NowOnAir) {
+
     }
 
     fn update_presence(&self, ctx: &Context, now_on_air: &NowOnAir) {
@@ -105,7 +118,14 @@ impl Handler {
             Some("https://i.imgur.com/Z3yujMQ.png".to_string())
         };
 
-        activity.url = img;
+        activity.assets = Some(ActivityAssets {
+            large_image: img.clone(),
+            large_text: img.clone(),
+            small_image: img.clone(),
+            small_text: img.clone(),
+            _nonexhaustive: ()
+        });
+
         ctx.set_presence(Some(activity), OnlineStatus::Online);
     }
 }
