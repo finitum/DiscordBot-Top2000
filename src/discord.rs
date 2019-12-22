@@ -1,15 +1,16 @@
 use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, Mutex};
-use serenity::model::gateway::Ready;
+use serenity::model::gateway::{Ready, Activity};
 use std::cell::RefCell;
 use serenity::model::channel::{GuildChannel, ChannelType};
 use std::sync::{Arc};
 use crate::voice::VoiceManager;
-use crate::api::{SongList, Song};
+use crate::api::{SongList, Song, NowOnAir};
 use serenity::framework::standard::StandardFramework;
 use dotenv_codegen::dotenv;
 use std::thread;
 use std::time::Duration;
+use serenity::model::user::OnlineStatus;
 
 type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
 
@@ -20,9 +21,23 @@ struct Handler {
     current_song: Option<Song>
 }
 
+impl Clone for Handler {
+    fn clone(&self) -> Self {
+        let text_channels_lock = self.text_channels.lock();
+        let voice_channels_lock = self.voice_channels.lock();
+
+        Handler {
+            song_list: self.song_list.clone(),
+            text_channels: Mutex::new(text_channels_lock.clone()),
+            voice_channels: Mutex::new(voice_channels_lock.clone()),
+            current_song: self.current_song.clone()
+        }
+    }
+}
+
 impl Handler {
     pub fn new(song_list: SongList) -> Handler {
-        let song = song_list.get_now_on_air().ok().map(|s| s.clone());
+        let song = song_list.get_now_on_air().ok().map(|s| s.song.clone());
 
         Handler {
             song_list,
@@ -33,6 +48,7 @@ impl Handler {
     }
 
     fn join_voice_channels(&self, ctx: &Context) {
+
         let voice_channels = self.voice_channels.lock();
         let voice_ref = &*voice_channels.borrow();
 
@@ -40,7 +56,8 @@ impl Handler {
         let mut manager = manager_lock.lock();
 
         for channel in voice_ref {
-            if let Some(handler) = manager.join(channel.guild_id, channel.id) {
+            let joined_channel = manager.join(channel.guild_id, channel.id);
+            if let Some(handler) = joined_channel {
                 println!("Joined channel top2000 on server {}!", channel.guild_id);
 
                 let source = match voice::ytdl("https://icecast.omroep.nl/radio2-bb-mp3") {
@@ -55,6 +72,41 @@ impl Handler {
                 panic!("Failed to join channel on server {}!", channel.guild_id);
             }
         }
+    }
+
+    fn background_loop(&self, ctx: &Context) {
+        let self_clone = self.clone();
+        let ctx_clone = ctx.clone();
+
+        thread::spawn(move || {
+            loop {
+                self_clone.generate_embed(&ctx_clone);
+                thread::sleep(Duration::from_millis(15000));
+            }
+        });
+    }
+
+    fn generate_embed(&self, ctx: &Context) {
+        let now_on_air = self.song_list.get_now_on_air().unwrap();
+
+        let title = &now_on_air.song.title;
+        let desc = now_on_air.song.get_description().unwrap();
+        println!("{} with desc {}", title, desc);
+
+        self.update_presence(ctx, &now_on_air);
+    }
+
+    fn update_presence(&self, ctx: &Context, now_on_air: &NowOnAir) {
+        let mut activity = Activity::listening(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist).as_ref());
+
+        let img = if now_on_air.img_url.is_some() {
+            now_on_air.img_url.clone()
+        } else {
+            Some("https://i.imgur.com/Z3yujMQ.png".to_string())
+        };
+
+        activity.url = img;
+        ctx.set_presence(Some(activity), OnlineStatus::Online);
     }
 }
 
@@ -87,12 +139,7 @@ impl EventHandler for Handler {
         }
 
         self.join_voice_channels(&ctx);
-        thread::spawn(move || {
-            loop {
-                println!("hi!");
-                thread::sleep(Duration::from_millis(5000));
-            }
-        });
+        self.background_loop(&ctx);
     }
 }
 
