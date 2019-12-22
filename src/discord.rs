@@ -9,15 +9,18 @@ use crate::api::{SongList, NowOnAir};
 use serenity::framework::standard::StandardFramework;
 use dotenv_codegen::dotenv;
 use std::thread;
-use std::time::Duration;
 use serenity::model::user::OnlineStatus;
+use chrono::Utc;
+use chrono::Duration;
+use std::time::Duration as StdDuration;
 
 type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
 
 struct Handler {
     song_list: SongList,
     text_channels: Channels,
-    voice_channels: Channels
+    voice_channels: Channels,
+    now_on_air: Option<NowOnAir>
 }
 
 impl Clone for Handler {
@@ -28,7 +31,8 @@ impl Clone for Handler {
         Handler {
             song_list: self.song_list.clone(),
             text_channels: Mutex::new(text_channels_lock.clone()),
-            voice_channels: Mutex::new(voice_channels_lock.clone())
+            voice_channels: Mutex::new(voice_channels_lock.clone()),
+            now_on_air: self.now_on_air.clone()
         }
     }
 }
@@ -38,7 +42,8 @@ impl Handler {
         Handler {
             song_list,
             text_channels: Mutex::new(RefCell::new(vec![])),
-            voice_channels: Mutex::new(RefCell::new(vec![]))
+            voice_channels: Mutex::new(RefCell::new(vec![])),
+            now_on_air: None
         }
     }
 
@@ -70,7 +75,7 @@ impl Handler {
     }
 
     fn background_loop(&self, ctx: &Context) {
-        let self_clone = self.clone();
+        let mut self_clone = self.clone();
         let ctx_clone = ctx.clone();
 
         thread::spawn(move || {
@@ -78,15 +83,26 @@ impl Handler {
                 let now_on_air = self_clone.song_list.get_now_on_air();
 
                 if let Ok(on_air) = now_on_air {
-                    let title = &on_air.song.title;
-                    let desc = &on_air.song.get_description().unwrap();
-                    println!("{} with desc {}", title, desc);
+                    let prev_now_on_air = self_clone.now_on_air.as_ref();
+                    if prev_now_on_air.is_none() || on_air.song.id != prev_now_on_air.unwrap().song.id {
+                        self_clone.now_on_air = Some(on_air.clone());
 
-                    self_clone.update_presence(&ctx_clone, &on_air);
-                    self_clone.generate_embed(&ctx_clone, &on_air);
+                        let title = &on_air.song.title;
+                        println!("New song: {}", title);
+
+                        self_clone.update_presence(&ctx_clone, &on_air);
+                        self_clone.generate_embed(&ctx_clone, &on_air);
+
+                        let diff = (on_air.end_time - Utc::now()) - Duration::seconds(15);
+                        thread::sleep(diff.to_std().unwrap_or(StdDuration::from_secs(15)));
+
+                        continue;
+                    }
+                } else {
+                    println!("Getting now on air failed miserably!");
                 }
 
-                thread::sleep(Duration::from_millis(15000));
+                thread::sleep(Duration::seconds(15).to_std().unwrap_or(StdDuration::from_secs(15)));
             }
         });
     }
@@ -103,7 +119,7 @@ impl Handler {
                         .title(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist))
                         .description(now_on_air.song.get_description().unwrap_or_else(|_| "".to_string()))
                         .image(now_on_air.img_url.as_ref().unwrap_or(&"".to_string()))
-                        .field("Position", now_on_air.song.position.to_string(), false)
+                        .field("Position", now_on_air.song.position.map_or("unknown".to_string(), |f| f.to_string()), false)
                         .url(format!("https://www.nporadio2.nl{}", now_on_air.song.url))
                 })
             });
@@ -132,14 +148,17 @@ impl EventHandler for Handler {
             };
 
             for guild in guilds {
-                let channels = ctx.http.get_channels(guild.id.0).expect("No channels found!");
-                for channel in channels {
-                    if channel.name == "top2000" && channel.kind == ChannelType::Text {
-                        let ref_vec = &*text_channels;
-                        ref_vec.borrow_mut().push(channel);
-                    } else if channel.name == "top2000" && channel.kind == ChannelType::Voice {
-                        let ref_vec = &*voice_channels;
-                        ref_vec.borrow_mut().push(channel);
+                let channels_res = ctx.http.get_channels(guild.id.0);
+
+                if let Ok(channels) = channels_res {
+                    for channel in channels {
+                        if channel.name == "top2000" && channel.kind == ChannelType::Text {
+                            let ref_vec = &*text_channels;
+                            ref_vec.borrow_mut().push(channel);
+                        } else if channel.name == "top2000" && channel.kind == ChannelType::Voice {
+                            let ref_vec = &*voice_channels;
+                            ref_vec.borrow_mut().push(channel);
+                        }
                     }
                 }
             }
