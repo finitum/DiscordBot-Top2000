@@ -91,7 +91,7 @@ impl SongList {
             if let Some(id_unwrapped) = id.as_u64() {
                 let song_option = self.songs.iter().find(|s| s.id == id_unwrapped);
                 if let Some(song) = song_option {
-                    let img_url_unparsed = &parsed_json["results"][0]["songfile"]["songversion"]["image"]["url_ssl"];
+                    let img_url_unparsed = &parsed_json["results"][0]["songfile"]["songversion"]["image"][0]["url_ssl"];
                     let img_url = if let Value::String(img) = img_url_unparsed {
                         Some(img.to_string())
                     } else {
