@@ -1,16 +1,16 @@
 use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, RwLock, Mutex};
 use std::env;
-use serenity::framework::StandardFramework;
 use serenity::model::gateway::Ready;
 use serenity::model::guild::GuildStatus;
 use std::cell::RefCell;
 use serenity::model::channel::{GuildChannel, ChannelType};
 use std::sync::{Arc};
-use std::borrow::BorrowMut;
 use crate::voice::VoiceManager;
 use std::process::exit;
 use crate::api::SongList;
+use serenity::framework::standard::StandardFramework;
+use dotenv_codegen::dotenv;
 
 type Channels = Mutex<RefCell<Vec<Arc<RwLock<GuildChannel>>>>>;
 
@@ -31,13 +31,15 @@ impl Handler {
 
     fn join_voice_channels(&self, ctx: Context) {
         let voice_channels = self.voice_channels.lock();
+        let voice_ref = &*voice_channels.borrow();
 
-        for channel in *voice_channels.borrow() {
-            let channel_locked = *channel.read();
-            let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().unwrap();
-            let mut manager = manager_lock.lock();
+        let manager_lock = ctx.data.read().get::<VoiceManager>().cloned().unwrap();
+        let mut manager = manager_lock.lock();
+
+        for channel in voice_ref {
+            let channel_locked = channel.read();
             if let Some(handler) = manager.join(channel_locked.guild_id, channel_locked.id) {
-                println!("Joined channel {}!", channel_locked.name);
+                println!("Joined channel {}!", "top2000");
 
                 let source = match voice::ytdl("https://icecast.omroep.nl/radio2-bb-mp3") {
                     Ok(source) => source,
@@ -49,7 +51,7 @@ impl Handler {
 
                 handler.play(source);
             } else {
-                println!("Failed to join channel {}!", channel_locked.name);
+                println!("Failed to join channel {}!", "top2000");
                 exit(1);
             }
         }
@@ -58,36 +60,44 @@ impl Handler {
 
 impl EventHandler for Handler {
     fn ready(&self, ctx: Context, data_about_bot: Ready) {
-        let mut text_channels = self.text_channels.lock();
-        let mut voice_channels = self.voice_channels.lock();
+        {
+            let text_channels = self.text_channels.lock();
+            let voice_channels = self.voice_channels.lock();
 
-        for guild_status in data_about_bot.guilds {
-            if let GuildStatus::OnlineGuild(guild) = guild_status {
-                for channel in guild.channels {
-                    let read_lock = *channel.1.read();
-                    if read_lock.name == "top2000" && read_lock.kind == ChannelType::Text {
-                        text_channels.borrow_mut().push(channel.1)
-                    } else if read_lock.name == "top2000" && read_lock.kind == ChannelType::Voice {
-                        voice_channels.borrow_mut().push(channel.1)
+            for guild_status in data_about_bot.guilds {
+                if let GuildStatus::OnlineGuild(guild) = guild_status {
+                    for channel in guild.channels {
+                        let read_lock = channel.1.read();
+                        if read_lock.name == "top2000" && read_lock.kind == ChannelType::Text {
+                            let ref_vec = &*text_channels;
+                            std::mem::drop(read_lock);
+                            ref_vec.borrow_mut().push(channel.1);
+                        } else if read_lock.name == "top2000" && read_lock.kind == ChannelType::Voice {
+                            let ref_vec = &*voice_channels;
+                            std::mem::drop(read_lock);
+                            ref_vec.borrow_mut().push(channel.1);
+                        }
                     }
                 }
             }
         }
+
+        self.join_voice_channels(ctx);
     }
 }
 
-fn create_bot(song_list: SongList) -> Client {
+pub fn create_bot(song_list: SongList) {
     let handler = Handler::new(song_list);
-    let mut client = Client::new(&env::var("X0xCja-HlXuAPeha9hzxPB4UiA6uSOo5").expect("token not found!"), handler).expect("error creating bot");
-
-    let mut data = client.data.write();
-    data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
+    let env_token = dotenv!("DISCORD_TOKEN");
+    let mut client = Client::new(env_token, handler).expect("error creating bot");
 
     client
         .with_framework(
             StandardFramework::new()
             .configure(|c| c.prefix("top2000-"))
-        );
+    );
 
-    client
+    client.data.write().insert::<VoiceManager>(Arc::clone(&client.voice_manager));
+
+    let _ = client.start().map_err(|why| println!("Client ended: {:?}", why));
 }

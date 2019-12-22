@@ -21,10 +21,7 @@ pub struct SongList {
 
 impl SongList {
     pub fn new() -> Result<SongList, ErrorKind> {
-        let body = reqwest::blocking::get("https://www.nporadio2.nl/?option=com_ajax&plugin=Top2000&format=json&year=2019")
-            .map_err(|_| ErrorKind::RequestError)?
-            .text()
-            .map_err(|_| ErrorKind::RequestError)?;
+        let body = include_str!("2019.json");
 
         println!("{}", body);
 
