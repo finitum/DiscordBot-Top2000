@@ -10,6 +10,5 @@ use crate::error::ErrorKind;
 fn main() -> Result<(), ErrorKind> {
     let song_list = SongList::new()?;
     create_bot(song_list);
-    println!();
     Ok(())
 }

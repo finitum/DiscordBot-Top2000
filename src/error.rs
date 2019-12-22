@@ -4,7 +4,9 @@ use std::fmt::Debug;
 
 #[derive(Debug)]
 pub enum ErrorKind {
-    JsonError(serde_json::Error)
+    JsonError(serde_json::Error),
+    RequestError(reqwest::Error),
+    GenericError
 }
 
 impl Error for ErrorKind {}
