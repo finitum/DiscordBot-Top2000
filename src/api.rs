@@ -16,6 +16,9 @@ pub struct Song {
     #[serde(rename = "pos")]
     pub position: u64,
 
+    #[serde(rename = "url")]
+    pub url: String
+
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +26,7 @@ pub struct SongList {
     songs: Vec<Song>
 }
 
+#[derive(Debug, Clone)]
 pub struct NowOnAir {
     pub song: Song,
     pub img_url: Option<String>
@@ -37,11 +41,11 @@ impl Song {
     pub fn get_description(&self) -> Result<String, ErrorKind> {
         let url = format!("https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid={}", self.id);
         let body = reqwest::blocking::get(&url)
-            .map_err(|e| ErrorKind::RequestError(e))?
+            .map_err(ErrorKind::RequestError)?
             .text()
-            .map_err(|e| ErrorKind::RequestError(e))?;
+            .map_err(ErrorKind::RequestError)?;
 
-        let desc_unparsed = &serde_json::from_str::<Value>(&body).map_err(|e| ErrorKind::JsonError(e))?["data"][0]["description"];
+        let desc_unparsed = &serde_json::from_str::<Value>(&body).map_err(ErrorKind::JsonError)?["data"][0]["description"];
         if let Value::String(desc) = desc_unparsed {
             Ok(desc.to_owned())
         } else {
@@ -56,8 +60,8 @@ impl SongList {
 
         println!("{}", body);
 
-        let unparsed_songs = &serde_json::from_str::<Value>(&body).map_err(|e| ErrorKind::JsonError(e))?["data"][0];
-        let songs = serde_json::from_value(unparsed_songs.to_owned()).map_err(|e| ErrorKind::JsonError(e))?;
+        let unparsed_songs = &serde_json::from_str::<Value>(&body).map_err(ErrorKind::JsonError)?["data"][0];
+        let songs = serde_json::from_value(unparsed_songs.to_owned()).map_err(ErrorKind::JsonError)?;
         Ok(SongList {
             songs
         })

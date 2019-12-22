@@ -1,11 +1,11 @@
 use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, Mutex};
-use serenity::model::gateway::{Ready, Activity, ActivityAssets};
+use serenity::model::gateway::{Ready, Activity};
 use std::cell::RefCell;
 use serenity::model::channel::{GuildChannel, ChannelType};
 use std::sync::{Arc};
 use crate::voice::VoiceManager;
-use crate::api::{SongList, Song, NowOnAir};
+use crate::api::{SongList, NowOnAir};
 use serenity::framework::standard::StandardFramework;
 use dotenv_codegen::dotenv;
 use std::thread;
@@ -17,8 +17,7 @@ type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
 struct Handler {
     song_list: SongList,
     text_channels: Channels,
-    voice_channels: Channels,
-    current_song: Option<Song>
+    voice_channels: Channels
 }
 
 impl Clone for Handler {
@@ -29,26 +28,17 @@ impl Clone for Handler {
         Handler {
             song_list: self.song_list.clone(),
             text_channels: Mutex::new(text_channels_lock.clone()),
-            voice_channels: Mutex::new(voice_channels_lock.clone()),
-            current_song: self.current_song.clone()
+            voice_channels: Mutex::new(voice_channels_lock.clone())
         }
     }
 }
 
 impl Handler {
     pub fn new(song_list: SongList) -> Handler {
-        let result = song_list.get_now_on_air();
-        let current_song = if let Ok(song) = result {
-            Some(song.song)
-        } else {
-            None
-        };
-
         Handler {
             song_list,
             text_channels: Mutex::new(RefCell::new(vec![])),
-            voice_channels: Mutex::new(RefCell::new(vec![])),
-            current_song
+            voice_channels: Mutex::new(RefCell::new(vec![]))
         }
     }
 
@@ -85,47 +75,44 @@ impl Handler {
 
         thread::spawn(move || {
             loop {
-                self_clone.handle_new_song(&ctx_clone);
+                let now_on_air = self_clone.song_list.get_now_on_air();
+
+                if let Ok(on_air) = now_on_air {
+                    let title = &on_air.song.title;
+                    let desc = &on_air.song.get_description().unwrap();
+                    println!("{} with desc {}", title, desc);
+
+                    self_clone.update_presence(&ctx_clone, &on_air);
+                    self_clone.generate_embed(&ctx_clone, &on_air);
+                }
+
                 thread::sleep(Duration::from_millis(15000));
             }
         });
     }
 
-    fn handle_new_song(&self, ctx: &Context) {
-        let now_on_air = self.song_list.get_now_on_air();
+    fn generate_embed(&self, ctx: &Context, now_on_air: &NowOnAir) {
 
-        if let Ok(on_air) = now_on_air {
-            let title = &on_air.song.title;
-            let desc = &on_air.song.get_description().unwrap();
-            println!("{} with desc {}", title, desc);
+        let text_channels = self.text_channels.lock();
+        let text_ref = &*text_channels.borrow();
 
-            self.update_presence(ctx, &on_air);
-            self.generate_embed(ctx, &on_air);
+        for text_channel in text_ref {
+            let _ = text_channel.send_message(ctx, |m| {
+                m.embed(|e| {
+                    e
+                        .title(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist))
+                        .description(now_on_air.song.get_description().unwrap_or_else(|_| "".to_string()))
+                        .image(now_on_air.img_url.as_ref().unwrap_or(&"".to_string()))
+                        .field("Position", now_on_air.song.position.to_string(), false)
+                        .url(format!("https://www.nporadio2.nl{}", now_on_air.song.url))
+                })
+            });
         }
 
     }
 
-    fn generate_embed(&self, ctx: &Context, now_on_air: &NowOnAir) {
-
-    }
-
     fn update_presence(&self, ctx: &Context, now_on_air: &NowOnAir) {
-        let mut activity = Activity::listening(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist).as_ref());
-
-        let img = if now_on_air.img_url.is_some() {
-            now_on_air.img_url.clone()
-        } else {
-            Some("https://i.imgur.com/Z3yujMQ.png".to_string())
-        };
-
-        activity.assets = Some(ActivityAssets {
-            large_image: img.clone(),
-            large_text: img.clone(),
-            small_image: img.clone(),
-            small_text: img.clone(),
-            _nonexhaustive: ()
-        });
-
+        let activity = Activity::listening(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist).as_ref());
         ctx.set_presence(Some(activity), OnlineStatus::Online);
     }
 }
