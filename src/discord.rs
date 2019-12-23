@@ -2,11 +2,11 @@ use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, Mutex};
 use serenity::model::gateway::{Ready, Activity};
 use std::cell::RefCell;
-use serenity::model::channel::{GuildChannel, ChannelType, Message};
+use serenity::model::channel::{GuildChannel, ChannelType};
 use std::sync::{Arc};
 use crate::voice::VoiceManager;
 use crate::api::{SongList, NowOnAir};
-use serenity::framework::standard::{StandardFramework, CommandResult};
+use serenity::framework::standard::{StandardFramework};
 use dotenv::dotenv;
 use std::thread;
 use serenity::model::user::OnlineStatus;
@@ -23,7 +23,8 @@ struct Handler {
     song_list: SongList,
     text_channels: Channels,
     voice_channels: Channels,
-    now_on_air: Option<NowOnAir>
+    now_on_air: Option<NowOnAir>,
+    force_server: Option<u64>
 }
 
 impl Clone for Handler {
@@ -35,18 +36,20 @@ impl Clone for Handler {
             song_list: self.song_list.clone(),
             text_channels: Mutex::new(text_channels_lock.clone()),
             voice_channels: Mutex::new(voice_channels_lock.clone()),
-            now_on_air: self.now_on_air.clone()
+            now_on_air: self.now_on_air.clone(),
+            force_server: self.force_server.clone()
         }
     }
 }
 
 impl Handler {
-    pub fn new(song_list: SongList) -> Handler {
+    pub fn new(song_list: SongList, force_server: Option<u64>) -> Handler {
         Handler {
             song_list,
             text_channels: Mutex::new(RefCell::new(vec![])),
             voice_channels: Mutex::new(RefCell::new(vec![])),
-            now_on_air: None
+            now_on_air: None,
+            force_server
         }
     }
 
@@ -59,6 +62,11 @@ impl Handler {
         let mut manager = manager_lock.lock();
 
         for channel in voice_ref {
+            if manager.get(channel.guild_id).is_some() {
+                manager.remove(channel.guild_id);
+                println!("Rejoining channel top2000 on server {}!", channel.guild_id);
+            }
+
             let joined_channel = manager.join(channel.guild_id, channel.id);
             if let Some(handler) = joined_channel {
                 println!("Joined channel top2000 on server {}!", channel.guild_id);
@@ -70,7 +78,7 @@ impl Handler {
                     }
                 };
 
-                handler.play(source);
+                handler.play_only(source);
             } else {
                 panic!("Failed to join channel on server {}!", channel.guild_id);
             }
@@ -189,16 +197,18 @@ impl EventHandler for Handler {
             };
 
             for guild in guilds {
-                let channels_res = ctx.http.get_channels(guild.id.0);
+                if self.force_server.is_none() || guild.id.0 == self.force_server.unwrap() {
+                    let channels_res = ctx.http.get_channels(guild.id.0);
 
-                if let Ok(channels) = channels_res {
-                    for channel in channels {
-                        if channel.name == "top2000" && channel.kind == ChannelType::Text {
-                            let ref_vec = &*text_channels;
-                            ref_vec.borrow_mut().push(channel);
-                        } else if channel.name == "top2000" && channel.kind == ChannelType::Voice {
-                            let ref_vec = &*voice_channels;
-                            ref_vec.borrow_mut().push(channel);
+                    if let Ok(channels) = channels_res {
+                        for channel in channels {
+                            if channel.name == "top2000" && channel.kind == ChannelType::Text {
+                                let ref_vec = &*text_channels;
+                                ref_vec.borrow_mut().push(channel);
+                            } else if channel.name == "top2000" && channel.kind == ChannelType::Voice {
+                                let ref_vec = &*voice_channels;
+                                ref_vec.borrow_mut().push(channel);
+                            }
                         }
                     }
                 }
@@ -211,15 +221,13 @@ impl EventHandler for Handler {
 }
 
 pub fn create_bot(song_list: SongList) {
-    let handler = Handler::new(song_list);
 
     let _ = dotenv();
-    let env_token = env::var("DISCORD_TOKEN");
-    if let Err(_) = env_token {
-        panic!("Environment variable not found!")
-    }
+    let env_token = env::var("DISCORD_TOKEN").expect("Environment variable DISCORD_TOKEN not found");
+    let force_server = env::var("FORCE_SERVER").ok().map(|s| s.parse().ok()).flatten();
 
-    let mut client = Client::new(env_token.unwrap(), handler).expect("error creating bot");
+    let handler = Handler::new(song_list, force_server);
+    let mut client = Client::new(env_token, handler).expect("error creating bot");
 
     client
         .with_framework(
