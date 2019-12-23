@@ -2,18 +2,20 @@ use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, Mutex};
 use serenity::model::gateway::{Ready, Activity};
 use std::cell::RefCell;
-use serenity::model::channel::{GuildChannel, ChannelType};
+use serenity::model::channel::{GuildChannel, ChannelType, Message};
 use std::sync::{Arc};
 use crate::voice::VoiceManager;
 use crate::api::{SongList, NowOnAir};
-use serenity::framework::standard::StandardFramework;
+use serenity::framework::standard::{StandardFramework, CommandResult};
 use dotenv::dotenv;
 use std::thread;
 use serenity::model::user::OnlineStatus;
-use chrono::Utc;
+use chrono::{Utc, DateTime};
 use chrono::Duration;
 use std::time::Duration as StdDuration;
 use std::env;
+use std::str::FromStr;
+use std::process::exit;
 
 type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
 
@@ -88,14 +90,21 @@ impl Handler {
                     if prev_now_on_air.is_none() || on_air.song.id != prev_now_on_air.unwrap().song.id {
                         self_clone.now_on_air = Some(on_air.clone());
 
-                        let title = &on_air.song.title;
-                        println!("New song: {}", title);
-
                         self_clone.update_presence(&ctx_clone, &on_air);
                         self_clone.generate_embed(&ctx_clone, &on_air);
+                        self_clone.handle_bohemian(&ctx_clone, &on_air);
 
+                        let title = &on_air.song.title;
                         let diff = (on_air.end_time - Utc::now()) - Duration::seconds(15);
-                        thread::sleep(diff.to_std().unwrap_or(StdDuration::from_secs(15)));
+
+                        let mut duration = diff.to_std().unwrap_or(StdDuration::from_secs(15));
+                        if duration.as_secs() < 15 {
+                            duration = StdDuration::from_secs(15);
+                        }
+
+                        println!("New song: {}. Sleeping for {} seconds", title, duration.as_secs());
+
+                        thread::sleep(duration);
 
                         continue;
                     }
@@ -103,9 +112,33 @@ impl Handler {
                     println!("Getting now on air failed miserably!");
                 }
 
-                thread::sleep(Duration::seconds(15).to_std().unwrap_or(StdDuration::from_secs(15)));
+                thread::sleep(StdDuration::from_secs(15));
             }
         });
+    }
+
+    fn handle_bohemian(&self, ctx: &Context, now_on_air: &NowOnAir) {
+        if now_on_air.song.id == 34096 {
+            loop {
+                let date2020_res = DateTime::from_str("2020-01-01T00:00:00+01:00");
+                if let Ok(date2020) = date2020_res {
+                    let now_min_2020 = Utc::now() - date2020;
+                    if now_min_2020.num_seconds() > 0 {
+                        let text_channels = self.text_channels.lock();
+                        let text_ref = &*text_channels.borrow();
+
+                        for text_channel in text_ref {
+                            let _ = text_channel.send_message(ctx, |m| {
+                                m.content("Happy new year @everyone! :partying_face:")
+                            });
+                        }
+
+                        exit(0);
+                    }
+                }
+                thread::sleep(StdDuration::from_secs(1));
+            }
+        }
     }
 
     fn generate_embed(&self, ctx: &Context, now_on_air: &NowOnAir) {
@@ -116,16 +149,23 @@ impl Handler {
         for text_channel in text_ref {
             let _ = text_channel.send_message(ctx, |m| {
                 m.embed(|e| {
+                    let date2020_res = DateTime::from_str("2020-01-01T00:00:00+01:00");
+                    let minutes_till_2020 = if let Ok(date2020) = date2020_res {
+                        (date2020 - Utc::now()).num_minutes().to_string()
+                    } else {
+                        "unknown".to_string()
+                    };
+
                     e
                         .title(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist))
                         .description(now_on_air.song.get_description().unwrap_or_else(|_| "".to_string()))
                         .image(now_on_air.img_url.as_ref().unwrap_or(&"".to_string()))
-                        .field("Position", now_on_air.song.position.map_or("unknown".to_string(), |f| f.to_string()), false)
+                        .field("Position", now_on_air.song.position.map_or("unknown".to_string(), |f| f.to_string()), true)
+                        .field("Minutes till 2020", minutes_till_2020, true)
                         .url(format!("https://www.nporadio2.nl{}", now_on_air.song.url))
                 })
             });
         }
-
     }
 
     fn update_presence(&self, ctx: &Context, now_on_air: &NowOnAir) {
