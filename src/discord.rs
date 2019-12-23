@@ -7,12 +7,13 @@ use std::sync::{Arc};
 use crate::voice::VoiceManager;
 use crate::api::{SongList, NowOnAir};
 use serenity::framework::standard::StandardFramework;
-use dotenv_codegen::dotenv;
+use dotenv::dotenv;
 use std::thread;
 use serenity::model::user::OnlineStatus;
 use chrono::Utc;
 use chrono::Duration;
 use std::time::Duration as StdDuration;
+use std::env;
 
 type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
 
@@ -172,8 +173,13 @@ impl EventHandler for Handler {
 pub fn create_bot(song_list: SongList) {
     let handler = Handler::new(song_list);
 
-    let env_token = dotenv!("DISCORD_TOKEN");
-    let mut client = Client::new(env_token, handler).expect("error creating bot");
+    let _ = dotenv();
+    let env_token = env::var("DISCORD_TOKEN");
+    if let Err(_) = env_token {
+        panic!("Environment variable not found!")
+    }
+
+    let mut client = Client::new(env_token.unwrap(), handler).expect("error creating bot");
 
     client
         .with_framework(

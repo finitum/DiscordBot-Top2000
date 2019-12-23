@@ -61,10 +61,11 @@ impl SongList {
     pub fn new() -> Result<SongList, ErrorKind> {
         let body = include_str!("2019.json");
 
-        println!("{}", body);
-
         let unparsed_songs = &serde_json::from_str::<Value>(&body).map_err(ErrorKind::JsonError)?["data"][0];
-        let songs = serde_json::from_value(unparsed_songs.to_owned()).map_err(ErrorKind::JsonError)?;
+        let songs: Vec<_> = serde_json::from_value(unparsed_songs.to_owned()).map_err(ErrorKind::JsonError)?;
+
+        println!("Successfully parsed {} songs!", &songs.len());
+
         Ok(SongList {
             songs
         })
