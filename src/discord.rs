@@ -226,6 +226,9 @@ pub fn create_bot(song_list: SongList) {
     let env_token = env::var("DISCORD_TOKEN").expect("Environment variable DISCORD_TOKEN not found");
     let force_server = env::var("FORCE_SERVER").ok().map(|s| s.parse().ok()).flatten();
 
+    println!("Received discord token {}", env_token);
+    println!("Received force server {}", force_server.map(|f: u64| f.to_string()).unwrap_or("-".to_string()));
+
     let handler = Handler::new(song_list, force_server);
     let mut client = Client::new(env_token, handler).expect("error creating bot");
 
