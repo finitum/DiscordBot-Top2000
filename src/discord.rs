@@ -163,11 +163,17 @@ impl Handler {
                         "unknown".to_string()
                     };
 
+                    let curr_position = now_on_air.song.position.map_or("unknown".to_string(), |f| f.to_string());
+                    let last_year_position = now_on_air.song
+                        .get_last_year_position()
+                        .map(|f| format!(" (last year: {})", f.to_string()))
+                        .unwrap_or("".to_string());
+
                     e
                         .title(format!("{} by {}", now_on_air.song.title, now_on_air.song.artist))
                         .description(now_on_air.song.get_description().unwrap_or_else(|_| "".to_string()))
                         .image(now_on_air.img_url.as_ref().unwrap_or(&"".to_string()))
-                        .field("Position", now_on_air.song.position.map_or("unknown".to_string(), |f| f.to_string()), true)
+                        .field("Position", format!("{}{}", curr_position, last_year_position), true)
                         .field("Minutes till 2020", minutes_till_2020, true)
                         .url(format!("https://www.nporadio2.nl{}", now_on_air.song.url))
                 })

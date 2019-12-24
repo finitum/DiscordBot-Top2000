@@ -55,6 +55,23 @@ impl Song {
             Err(ErrorKind::GenericError)
         }
     }
+
+    pub fn get_last_year_position(&self) -> Result<u64, ErrorKind> {
+        let url = format!("https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid={}", self.id);
+        let body = reqwest::blocking::get(&url)
+            .map_err(ErrorKind::RequestError)?
+            .text()
+            .map_err(ErrorKind::RequestError)?;
+
+        let positions_unparsed = &serde_json::from_str::<Value>(&body).map_err(ErrorKind::JsonError)?["data"][0]["positions"];
+        if let Value::Array(positions) = positions_unparsed {
+            let year = positions.iter().find(|v| v["year"] == "2018").ok_or(ErrorKind::GenericError)?;
+            let position = year["position"].as_str().ok_or(ErrorKind::GenericError)?.parse().map_err(|_| ErrorKind::GenericError)?;
+            Ok(position)
+        } else {
+            Err(ErrorKind::GenericError)
+        }
+    }
 }
 
 impl SongList {
