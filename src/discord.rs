@@ -95,7 +95,11 @@ impl Handler {
 
                 if let Ok(on_air) = now_on_air {
                     let prev_now_on_air = self_clone.now_on_air.as_ref();
-                    if prev_now_on_air.is_none() || on_air.song.id != prev_now_on_air.unwrap().song.id || on_air.end_time != prev_now_on_air.unwrap().end_time  {
+                    if prev_now_on_air.is_none() ||
+                        on_air.song.id != prev_now_on_air.unwrap().song.id ||
+                        on_air.song.title != prev_now_on_air.unwrap().song.title ||
+                        on_air.song.artist != prev_now_on_air.unwrap().song.artist {
+
                         self_clone.now_on_air = Some(on_air.clone());
 
                         self_clone.update_presence(&ctx_clone, &on_air);
