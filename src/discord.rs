@@ -1,6 +1,6 @@
 use serenity::{Client, voice};
 use serenity::prelude::{EventHandler, Context, Mutex};
-use serenity::model::gateway::{Ready, Activity};
+use serenity::model::gateway::{Activity};
 use std::cell::RefCell;
 use serenity::model::channel::{GuildChannel, ChannelType};
 use std::sync::{Arc};
@@ -16,6 +16,7 @@ use std::time::Duration as StdDuration;
 use std::env;
 use std::str::FromStr;
 use std::process::exit;
+use serenity::model::id::GuildId;
 
 type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
 
@@ -158,7 +159,7 @@ impl Handler {
         let text_ref = &*text_channels.borrow();
 
         for text_channel in text_ref {
-            let _ = text_channel.send_message(ctx, |m| {
+            let sent_message = text_channel.send_message(ctx, |m| {
                 m.embed(|e| {
                     let date2020_res = DateTime::from_str("2020-01-01T00:00:00+01:00");
                     let minutes_till_2020 = if let Ok(date2020) = date2020_res {
@@ -182,6 +183,10 @@ impl Handler {
                         .url(format!("https://www.nporadio2.nl{}", now_on_air.song.url))
                 })
             });
+
+            if let Err(err) = sent_message {
+                println!("Failed sending message, {}", err);
+            }
         }
     }
 
@@ -192,22 +197,14 @@ impl Handler {
 }
 
 impl EventHandler for Handler {
-    fn ready(&self, ctx: Context, _data_about_bot: Ready) {
+    fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         {
             let text_channels = self.text_channels.lock();
             let voice_channels = self.voice_channels.lock();
 
-            let guard = ctx.cache.read();
-            let guilds_res = &guard.user.guilds(&ctx.http);
-            let guilds = if let Ok(guild) = guilds_res {
-                guild
-            } else {
-                panic!("No guilds found!");
-            };
-
             for guild in guilds {
-                if self.force_server.is_none() || guild.id.0 == self.force_server.unwrap() {
-                    let channels_res = ctx.http.get_channels(guild.id.0);
+                if self.force_server.is_none() || guild.0 == self.force_server.unwrap() {
+                    let channels_res = ctx.http.get_channels(guild.0);
 
                     if let Ok(channels) = channels_res {
                         for channel in channels {
