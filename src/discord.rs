@@ -170,7 +170,7 @@ impl Handler {
                         let minutes_till_2021 = if let Ok(date2021) = date2021_res {
                             let minutes = (date2021 - Utc::now()).num_minutes();
 
-                            format!("{:2}:{:2}", (minutes / 60) as u64, (minutes % 60) as u64)
+                            format!("{:02}:{:02}", (minutes / 60) as u64, (minutes % 60) as u64)
                         } else {
                             "unknown".to_string()
                         };
