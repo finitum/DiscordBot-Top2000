@@ -153,15 +153,3 @@ impl SongList {
         Err(ErrorKind::GenericError)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn it_works() {
-        let s_list = SongList::new().unwrap();
-        let res = s_list.get_now_on_air().await.unwrap();
-        dbg!(res);
-    }
-}
