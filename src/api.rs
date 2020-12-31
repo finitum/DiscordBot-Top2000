@@ -46,14 +46,16 @@ where
 }
 
 impl Song {
-    pub fn get_description(&self) -> Result<String, ErrorKind> {
+    pub async fn get_description(&self) -> Result<String, ErrorKind> {
         let url = format!(
             "https://www.nporadio2.nl/?option=com_ajax&plugin=Trackdata&format=json&songid={}",
             self.id
         );
-        let body = reqwest::blocking::get(&url)
+        let body = reqwest::get(&url)
+            .await
             .map_err(ErrorKind::RequestError)?
             .text()
+            .await
             .map_err(ErrorKind::RequestError)?;
 
         let desc_unparsed = &serde_json::from_str::<Value>(&body).map_err(ErrorKind::JsonError)?
@@ -84,11 +86,11 @@ impl SongList {
         Ok(SongList { songs })
     }
 
-    pub fn get_now_on_air(&self) -> Result<NowOnAir, ErrorKind> {
+    pub async fn get_now_on_air(&self) -> Result<NowOnAir, ErrorKind> {
         let body =
-            reqwest::blocking::get("https://www.nporadio2.nl/?option=com_ajax&plugin=nowplaying&format=json&channel=nporadio2")
+            reqwest::get("https://www.nporadio2.nl/?option=com_ajax&plugin=nowplaying&format=json&channel=nporadio2").await
                 .map_err(ErrorKind::RequestError)?
-                .text()
+                .text().await
                 .map_err(ErrorKind::RequestError)?;
 
         let parsed_json = serde_json::from_str::<Value>(&body).map_err(ErrorKind::JsonError)?;
@@ -152,10 +154,10 @@ impl SongList {
 mod tests {
     use super::*;
 
-    #[test]
-    fn it_works() {
+    #[tokio::test]
+    async fn it_works() {
         let s_list = SongList::new().unwrap();
-        let res = s_list.get_now_on_air().unwrap();
+        let res = s_list.get_now_on_air().await.unwrap();
         dbg!(res);
     }
 }

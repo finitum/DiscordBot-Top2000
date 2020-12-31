@@ -9,15 +9,13 @@ use serenity::model::user::OnlineStatus;
 use serenity::prelude::{Context, EventHandler, Mutex};
 use serenity::{async_trait, framework::standard::StandardFramework};
 use serenity::{voice, Client};
-use std::cell::RefCell;
 use std::env;
 use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::thread;
 use std::time::Duration as StdDuration;
 
-type Channels = Mutex<RefCell<Vec<GuildChannel>>>;
+type Channels = Mutex<Vec<GuildChannel>>;
 
 struct Handler {
     song_list: SongList,
@@ -27,27 +25,26 @@ struct Handler {
     force_server: Option<u64>,
 }
 
-// impl Clone for Handler {
-//     fn clone(&self) -> Self {
-//         let text_channels_lock = self.text_channels.lock();
-//         let voice_channels_lock = self.voice_channels.lock();
-
-//         Handler {
-//             song_list: self.song_list.clone(),
-//             text_channels: Mutex::new(text_channels_lock.clone()),
-//             voice_channels: Mutex::new(voice_channels_lock.clone()),
-//             now_on_air: self.now_on_air.clone(),
-//             force_server: self.force_server,
-//         }
-//     }
-// }
+impl Handler {
+    async fn async_clone(&self) -> Self {
+        let text_channels_lock = self.text_channels.lock().await;
+        let voice_channels_lock = self.voice_channels.lock().await;
+        Handler {
+            song_list: self.song_list.clone(),
+            text_channels: Mutex::new(text_channels_lock.clone()),
+            voice_channels: Mutex::new(voice_channels_lock.clone()),
+            now_on_air: self.now_on_air.clone(),
+            force_server: self.force_server,
+        }
+    }
+}
 
 impl Handler {
     pub fn new(song_list: SongList, force_server: Option<u64>) -> Handler {
         Handler {
             song_list,
-            text_channels: Mutex::new(RefCell::new(vec![])),
-            voice_channels: Mutex::new(RefCell::new(vec![])),
+            text_channels: Mutex::new(vec![]),
+            voice_channels: Mutex::new(vec![]),
             now_on_air: None,
             force_server,
         }
@@ -55,7 +52,7 @@ impl Handler {
 
     async fn join_voice_channels(&self, ctx: &Context) {
         let voice_channels = self.voice_channels.lock().await;
-        let voice_ref = &*voice_channels.borrow();
+        let voice_ref = &*voice_channels;
 
         let manager_lock = ctx
             .data
@@ -90,12 +87,12 @@ impl Handler {
         }
     }
 
-    fn background_loop(&self, ctx: &Context) {
-        let mut self_clone = self.clone();
+    async fn background_loop(&self, ctx: &Context) {
+        let mut self_clone = self.async_clone().await;
         let ctx_clone = ctx.clone();
 
-        thread::spawn(move || loop {
-            let now_on_air = self_clone.song_list.get_now_on_air();
+        loop {
+            let now_on_air = self_clone.song_list.get_now_on_air().await;
 
             if let Ok(on_air) = now_on_air {
                 let prev_now_on_air = self_clone.now_on_air.as_ref();
@@ -106,9 +103,9 @@ impl Handler {
                 {
                     self_clone.now_on_air = Some(on_air.clone());
 
-                    self_clone.update_presence(&ctx_clone, &on_air);
-                    self_clone.generate_embed(&ctx_clone, &on_air);
-                    self_clone.handle_first_place(&ctx_clone, &on_air);
+                    self_clone.update_presence(&ctx_clone, &on_air).await;
+                    self_clone.generate_embed(&ctx_clone, &on_air).await;
+                    self_clone.handle_first_place(&ctx_clone, &on_air).await;
                     let title = &on_air.song.title;
 
                     let duration = StdDuration::from_secs(15);
@@ -119,7 +116,7 @@ impl Handler {
                         duration.as_secs()
                     );
 
-                    thread::sleep(duration);
+                    tokio::time::delay_for(duration).await;
 
                     continue;
                 }
@@ -127,8 +124,8 @@ impl Handler {
                 println!("Getting now on air failed miserably!");
             }
 
-            thread::sleep(StdDuration::from_secs(15));
-        });
+            tokio::time::delay_for(StdDuration::from_secs(15)).await;
+        }
     }
 
     async fn handle_first_place(&self, ctx: &Context, now_on_air: &NowOnAir) {
@@ -139,7 +136,7 @@ impl Handler {
                     let now_min_2021 = Utc::now() - date2021;
                     if now_min_2021.num_seconds() > 0 {
                         let text_channels = self.text_channels.lock().await;
-                        let text_ref = &*text_channels.borrow();
+                        let text_ref = &*text_channels;
 
                         for text_channel in text_ref {
                             let _ = text_channel.send_message(ctx, |m| {
@@ -150,14 +147,20 @@ impl Handler {
                         exit(0);
                     }
                 }
-                thread::sleep(StdDuration::from_secs(1));
+                tokio::time::delay_for(StdDuration::from_secs(1)).await;
             }
         }
     }
 
     async fn generate_embed(&self, ctx: &Context, now_on_air: &NowOnAir) {
         let text_channels = self.text_channels.lock().await;
-        let text_ref = &*text_channels.borrow();
+        let text_ref = &*text_channels;
+
+        let description = now_on_air
+            .song
+            .get_description()
+            .await
+            .unwrap_or_else(|_| "".to_string());
 
         for text_channel in text_ref {
             let sent_message = text_channel
@@ -197,12 +200,7 @@ impl Handler {
                             "{} by {}",
                             now_on_air.song.title, now_on_air.song.artist
                         ))
-                        .description(
-                            now_on_air
-                                .song
-                                .get_description()
-                                .unwrap_or_else(|_| "".to_string()),
-                        )
+                        .description(description.clone())
                         .image(now_on_air.img_url.as_ref().unwrap_or(&"".to_string()))
                         .field(
                             "Position",
@@ -221,11 +219,11 @@ impl Handler {
         }
     }
 
-    fn update_presence(&self, ctx: &Context, now_on_air: &NowOnAir) {
+    async fn update_presence(&self, ctx: &Context, now_on_air: &NowOnAir) {
         let activity = Activity::listening(
             format!("{} by {}", now_on_air.song.title, now_on_air.song.artist).as_ref(),
         );
-        ctx.set_presence(Some(activity), OnlineStatus::Online);
+        ctx.set_presence(Some(activity), OnlineStatus::Online).await;
     }
 }
 
@@ -233,8 +231,8 @@ impl Handler {
 impl EventHandler for Handler {
     async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         {
-            let text_channels = self.text_channels.lock().await;
-            let voice_channels = self.voice_channels.lock().await;
+            let mut text_channels = self.text_channels.lock().await;
+            let mut voice_channels = self.voice_channels.lock().await;
 
             for guild in guilds {
                 if self.force_server.is_none() || guild.0 == self.force_server.unwrap() {
@@ -243,13 +241,13 @@ impl EventHandler for Handler {
                     if let Ok(channels) = channels_res {
                         for channel in channels {
                             if channel.name == "top2000" && channel.kind == ChannelType::Text {
-                                let ref_vec = &*text_channels;
-                                ref_vec.borrow_mut().push(channel);
+                                let ref_vec = &mut *text_channels;
+                                ref_vec.push(channel);
                             } else if channel.name == "top2000"
                                 && channel.kind == ChannelType::Voice
                             {
-                                let ref_vec = &*voice_channels;
-                                ref_vec.borrow_mut().push(channel);
+                                let ref_vec = &mut *voice_channels;
+                                ref_vec.push(channel);
                             }
                         }
                     }
@@ -257,8 +255,8 @@ impl EventHandler for Handler {
             }
         }
 
-        self.join_voice_channels(&ctx);
-        self.background_loop(&ctx);
+        self.join_voice_channels(&ctx).await;
+        self.background_loop(&ctx).await;
     }
 }
 

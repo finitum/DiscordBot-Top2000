@@ -1,14 +1,15 @@
 mod api;
-mod error;
 mod discord;
+mod error;
 mod voice;
 
-use api::SongList;
 use crate::discord::create_bot;
 use crate::error::ErrorKind;
+use api::SongList;
 
-fn main() -> Result<(), ErrorKind> {
+#[tokio::main]
+async fn main() -> Result<(), ErrorKind> {
     let song_list = SongList::new()?;
-    create_bot(song_list);
+    create_bot(song_list).await;
     Ok(())
 }
