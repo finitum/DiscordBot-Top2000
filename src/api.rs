@@ -86,6 +86,10 @@ impl SongList {
         Ok(SongList { songs })
     }
 
+    pub fn get_song(&self, position: usize) -> Option<&Song> {
+        self.songs.get(position)
+    }
+
     pub async fn get_now_on_air(&self) -> Result<NowOnAir, ErrorKind> {
         let body =
             reqwest::get("https://www.nporadio2.nl/?option=com_ajax&plugin=nowplaying&format=json&channel=nporadio2").await

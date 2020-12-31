@@ -129,7 +129,12 @@ impl Handler {
     }
 
     async fn handle_first_place(&self, ctx: &Context, now_on_air: &NowOnAir) {
-        if now_on_air.song.id == 24936 {
+        let first_song = match self.song_list.get_song(0) {
+            Some(s) => s,
+            _ => return,
+        };
+
+        if now_on_air.song.id == first_song.id {
             loop {
                 let date2021_res = DateTime::from_str("2021-01-01T00:00:00+01:00");
                 if let Ok(date2021) = date2021_res {
