@@ -1,6 +1,6 @@
-use serenity::prelude::{TypeMapKey, Mutex};
-use std::sync::{Arc};
 use serenity::client::bridge::voice::ClientVoiceManager;
+use serenity::prelude::{Mutex, TypeMapKey};
+use std::sync::Arc;
 
 pub struct VoiceManager;
 
