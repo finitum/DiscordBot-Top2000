@@ -9,7 +9,15 @@ edition = "2018"
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-serenity = {version = "0.7", features = ["cache", "framework", "standard_framework", "voice", "http", "rustls_backend"] }
+serenity = { version = "0.9", features = [
+  "cache",
+  "framework",
+  "standard_framework",
+  "voice",
+  "http",
+  "rustls_backend",
+] }
 dotenv = "0.15.0"
-reqwest = { version = "0.10.0-alpha.2", features = ["blocking"] }
+reqwest = { version = "0.10", features = ["blocking"] }
 chrono = "0.4"
+async-trait = "0.1.42"
